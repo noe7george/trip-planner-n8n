@@ -1,0 +1,1491 @@
+{
+  "name": "Trip Planner V2",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1936,
+        288
+      ],
+      "id": "e1c560f0-5ec8-4aee-8948-e5580464a579",
+      "name": "Telegram Trigger",
+      "webhookId": "17f2129c-c30b-4b40-aef9-fbb3d839144d",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get Gemini response\nlet response = $json.content.parts[0].text;\n\n// Remove markdown if present\nresponse = response\n  .replace(/```json/gi, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nconst parsed = JSON.parse(response);\n\n// Convert NEW Gemini format into the OLD workflow format\n\nconst activities = [];\n\nparsed.days.forEach(day => {\n  day.activities.forEach((activity, index) => {\n    activities.push({\n      day_number: day.day,\n      activity_order: index + 1,\n      start_time: activity.time,\n      end_time: \"\",\n      activity_name: activity.activity_name,\n      description: activity.description,\n      category: activity.category,\n      location: activity.location,\n      latitude: \"\",\n      longitude: \"\",\n      estimated_cost: activity.estimated_cost,\n      indoor: activity.indoor,\n      status: \"Planned\",\n      notes: \"\"\n    });\n  });\n});\n\nreturn [\n  {\n    json: {\n      trip: {\n        trip_name: parsed.trip_title,\n        destination: $('Code in JavaScript4').item.json.destination,\n        country: \"\",\n        start_date: $('Code in JavaScript3').item.json.startDate,\n        end_date: $('Code in JavaScript3').item.json.endDate,\n        number_of_days: parsed.days.length,\n        budget: $('Code in JavaScript3').item.json.budget,\n        currency: $('Code in JavaScript3').item.json.currency,\n        travelers: $('Code in JavaScript3').item.json.people,\n        trip_style: $('Code in JavaScript3').item.json.style,\n        status: parsed.budget_status\n      },\n      activities\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        576
+      ],
+      "id": "02c202aa-35fc-4f17-98ad-c2bfcda83407",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "activities",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        672
+      ],
+      "id": "5f5a88d7-6763-4f55-b4d3-3ee598d57aca",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "const footer = `\n\n━━━━━━━━━━━━━━\n\n🏠 Type *home* to return to the main menu.`;\n\nconst trips = $('Get Trips Data').all();\nconst activities = $('Gets Activities Data').all();\n\nconst latestTrip = trips[trips.length - 1].json;\n\nconst tripName = latestTrip[\"Trip Name\"];\nconst destination = latestTrip[\"Destination\"];\nconst startDate = latestTrip[\"Start Date\"];\nconst endDate = latestTrip[\"End Date\"];\nconst travelers = latestTrip[\"Travelers\"];\nconst budget = latestTrip[\"Budget\"];\nconst currency = latestTrip[\"Currency\"];\n\n// Filter only this trip's activities\nconst tripActivities = activities.filter(\n    item => item.json[\"Trip Name\"] === tripName\n);\n\n// Group activities by day\nconst days = {};\n\ntripActivities.forEach(item => {\n    const day = item.json[\"Day Number\"];\n\n    if (!days[day]) {\n        days[day] = [];\n    }\n\n    days[day].push(item.json[\"Activity Name\"]);\n});\n\n// Total days\nconst totalDays = Object.keys(days).length;\n\n// Build message\nlet message = `🏝 *${tripName}*\\n\\n`;\n\nmessage += `📍 ${destination}\\n`;\nmessage += `📅 ${startDate} → ${endDate} (${totalDays} Days)\\n`;\nmessage += `👥 ${travelers} Traveler${travelers > 1 ? \"s\" : \"\"}\\n`;\nmessage += `💰 ${budget} ${currency}\\n`;\n\nmessage += `\\n━━━━━━━━━━━━━━\\n\\n`;\n\nObject.keys(days)\n    .sort((a, b) => a - b)\n    .forEach(day => {\n\n        message += `🌅 *DAY ${day}*\\n`;\n\n       const previewLimit = 4; // Show only the first 4 activities\n\ndays[day]\n    .slice(0, previewLimit)\n    .forEach(activity => {\n        message += `• ${activity}\\n`;\n    });\n\nif (days[day].length > previewLimit) {\n    message += `• ...and ${days[day].length - previewLimit} more\\n`;\n}\n\n        message += `\\n`;\n    });\n\nmessage += `━━━━━━━━━━━━━━\\n\\n`;\n\nmessage += `📖 View detailed schedule:\\n`;\n\nObject.keys(days)\n    .sort((a, b) => a - b)\n    .forEach(day => {\n        message += `• DAY ${day}\\n`;\n    });\n\nmessage += footer;\n\n\nreturn [{\n    json: {\n        message\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        384
+      ],
+      "id": "b549adc2-c158-490c-8c52-834c351631b5",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "596b15d4-daa4-4b45-a845-cd4140a55c0d",
+              "leftValue": "={{ $json.isComplete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -912,
+        672
+      ],
+      "id": "e07b6913-c699-4794-8b2f-bb4b41baddf3",
+      "name": "Sufficient Data Available or not"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✈️ Great! I'm almost ready to create your personalized itinerary.\n\nSome trip details are missing.\n\nPlease send your COMPLETE trip information in the format I'll send in the next message.\n\nExample:\n\nOrigin: Kochi\nDestination: Munnar\nTransport Mode: Car\nStart Date: 30/07/2026\nEnd Date: 06/08/2026\nNumber of Travelers: 2\nBudget: ₹100000\n\n📋 Simply copy the template from the next message, fill in your details, and send it back.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        848
+      ],
+      "id": "fc16399f-4783-4121-8037-44bbcccd75f8",
+      "name": "Ask for missing data",
+      "webhookId": "4f45845e-278e-4edb-b81f-29cea4b362a7",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=## ROLE\n\nYou are **TravelOS AI**, an expert travel planner.\n\nYour job is to generate a practical, enjoyable, and budget-aware travel itinerary using the provided trip details and the Google Places attractions list.\n\nAlways use the supplied attraction list as the primary source of sightseeing locations. Do not invent attractions unless absolutely necessary.\n\n---\n\n## TRIP DETAILS\n\nOrigin:\n\n{{ $('Code in JavaScript3').item.json.origin }}\n\nDestination:\n\n{{ $('Code in JavaScript3').item.json.destination }}\n\nTransport Mode:\n\n{{ $('Code in JavaScript3').item.json.transportMode }}\n\nStart Date:\n\n{{ $('Code in JavaScript3').item.json.startDate }}\n\nEnd Date:\n\n{{ $('Code in JavaScript3').item.json.endDate }}\n\nTravelers:\n\n{{ $('Code in JavaScript3').item.json.people }}\n\nBudget:\n\n{{ $('Code in JavaScript3').item.json.currency }} {{ $('Code in JavaScript3').item.json.budget }}\n\nTravel Style:\n\n{{ $('Code in JavaScript3').item.json.style }}\n\n---\n\n## GOOGLE PLACES ATTRACTIONS\n\n{{ $('Code in JavaScript4').item.json.attractionList }}\n\n---\n\n## PLANNING RULES\n\n1. Determine the trip duration from the start and end dates.\n\n2. Day 1 must begin from the origin city.\n\n3. If transport mode is Car, include departure, arrival and hotel check-in.\n\n4. If transport mode is Bus, Train or Flight, assume arrival before sightseeing.\n\n5. Keep the first day lighter than the remaining sightseeing days.\n\n6. Keep the last day shorter to allow the return journey.\n\n7. Group nearby attractions together to reduce travel time.\n\n8. Prioritize attractions by **review count first**, then by rating.\n\n9. Avoid repeating attractions.\n\n10. Include breakfast, lunch, dinner and evening leisure naturally.\n\n11. Recommend budget-friendly restaurants and hotels when appropriate.\n\n12. Respect opening hours.\n\n13. Estimate realistic costs.\n\n14. Never exceed the user's budget.\n\n15. If an attraction list is provided, use ONLY those attractions unless absolutely necessary.\n\n---\n\n## OUTPUT RULES\n\nReturn ONLY valid JSON.\n\nNo markdown.\n\nNo explanation.\n\nUse EXACTLY this schema.\n\n{\n  \"trip_title\": \"\",\n  \"summary\": \"\",\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"\",\n      \"activities\": [\n        {\n          \"time\": \"\",\n          \"activity_name\": \"\",\n          \"description\": \"\",\n          \"category\": \"\",\n          \"location\": \"\",\n          \"estimated_cost\": 0,\n          \"indoor\": false\n        }\n      ]\n    }\n  ],\n  \"estimated_total_cost\": 0,\n  \"budget_status\": \"\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        576
+      ],
+      "id": "b334e539-d643-4cf0-873c-1d046ae94b7b",
+      "name": "Creates Itenary",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fv75VRENipBXeTmT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 640879796,
+          "mode": "list",
+          "cachedResultName": "Trips",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=640879796"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1424,
+        384
+      ],
+      "id": "a8628d6e-58fe-4d0a-8423-c72318308112",
+      "name": "Get Trips Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 183162205,
+          "mode": "list",
+          "cachedResultName": "Activities",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=183162205"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Trip ID",
+              "lookupValue": "={{ $('Get Trips Data').last().json['Trip ID'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1136,
+        384
+      ],
+      "id": "ad018c06-b308-4806-906f-75692a7d7189",
+      "name": "Gets Activities Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -688,
+        384
+      ],
+      "id": "741bdbad-9310-4aa0-a871-f2d1f4bf719f",
+      "name": "Shows Itenary",
+      "webhookId": "f1e76d69-5bdc-4489-bc0c-ec0c8b12d381",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 640879796,
+          "mode": "list",
+          "cachedResultName": "Trips",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=640879796"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Trip Name": "={{ $json.trip.trip_name }}",
+            "Destination": "={{ $json.trip.destination }}",
+            "Country": "={{ $json.trip.country }}",
+            "Start Date": "={{ $json.trip.start_date }}",
+            "End Date": "={{ $json.trip.end_date }}",
+            "Number of Days": "={{ $json.trip.number_of_days }}",
+            "Budget": "={{ $json.trip.budget }}",
+            "Currency": "={{ $json.trip.currency }}",
+            "Travelers": "={{ $json.trip.travelers }}",
+            "Trip Style": "={{ $json.trip.trip_style }}",
+            "Status": "={{ $json.trip.status }}",
+            "Trip ID": "={{ $now.toMillis() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Trip ID",
+              "displayName": "Trip ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Trip Name",
+              "displayName": "Trip Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Destination",
+              "displayName": "Destination",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Start Date",
+              "displayName": "Start Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "End Date",
+              "displayName": "End Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Number of Days",
+              "displayName": "Number of Days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Travelers",
+              "displayName": "Travelers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Trip Style",
+              "displayName": "Trip Style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1136,
+        480
+      ],
+      "id": "9957ae7e-4fc7-4e8c-b222-21b444e906b9",
+      "name": "Updates the Trip details",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ *Trip Created Successfully!*\n\n🏔️ *{{ $('Code in JavaScript').item.json.trip.trip_name }}*\n\n📍 *Destination*\n*{{ $('Code in JavaScript').item.json.trip.destination }}*\n\n📅 *Travel Dates*\n\n🛫 {{ $('Code in JavaScript').item.json.trip.start_date }}\n🛬 {{ $('Code in JavaScript').item.json.trip.end_date }}\n\n👥 *Travelers*\n\n{{ $('Code in JavaScript').item.json.trip.travelers }} People\n\n💰 *Budget*\n\n{{ $('Code in JavaScript').item.json.trip.currency }} {{ $('Code in JavaScript').item.json.trip.budget }}\n\n🎒 *Trip Style*\n\n{{ $('Code in JavaScript').item.json.trip.trip_style }}\n\n💾 Your itinerary has been saved successfully.\n\nYou can now ask me:\n\n🔹 Show my itinerary\n🔹 Day 1\n🔹 Day 2\n🔹 Plan another trip",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        480
+      ],
+      "id": "dbb358a1-d60c-4f6c-9a87-5aa71e2c3e56",
+      "name": "Itenary Created Message",
+      "webhookId": "cf0ad65f-b623-4d44-bcb3-d9851dd551b0",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 183162205,
+          "mode": "list",
+          "cachedResultName": "Activities",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=183162205"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Day Number": "={{ $json.day_number }}",
+            "Activity Order": "={{ $json.activity_order }}",
+            "Start Time": "={{ $json.start_time }}",
+            "End Time": "={{ $json.end_time }}",
+            "Activity Name": "={{ $json.activity_name }}",
+            "Description": "={{ $json.description }}",
+            "Category": "={{ $json.category }}",
+            "Location": "={{ $json.location }}",
+            "Latitude": "={{ $json.latitude }}",
+            "Longitude": "={{ $json.longitude }}",
+            "Estimated Cost": "={{ $json.estimated_cost }}",
+            "Indoor": "={{ $json.indoor }}",
+            "Status": "={{ $json.status }}",
+            "Notes": "={{ $json.notes }}",
+            "Trip Name": "={{ $('Code in JavaScript').item.json.trip.trip_name }}",
+            "Trip ID": "={{ $('Updates the Trip details').first().json['Trip ID'] }}"
+          },
+          "matchingColumns": [
+            "Trip ID"
+          ],
+          "schema": [
+            {
+              "id": "Trip Name",
+              "displayName": "Trip Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Trip ID",
+              "displayName": "Trip ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Day Number",
+              "displayName": "Day Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity Order",
+              "displayName": "Activity Order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Start Time",
+              "displayName": "Start Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "End Time",
+              "displayName": "End Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity Name",
+              "displayName": "Activity Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Latitude",
+              "displayName": "Latitude",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Longitude",
+              "displayName": "Longitude",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Cost",
+              "displayName": "Estimated Cost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Indoor",
+              "displayName": "Indoor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        672
+      ],
+      "id": "d9c1707f-d7c5-4b8c-afaa-8fdf2d3e4932",
+      "name": "Updates Activities",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extract the travel information from the following message.\n\nUser Message:\n\n{{ $('Telegram Trigger').item.json.message.text }}\n\nReturn ONLY valid JSON."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {
+          "systemMessage": "You are TravelOS's intelligent travel information extractor.  Your task is to extract structured travel information from the user's message.  Return ONLY valid JSON.  Never explain your answer.  Never wrap the JSON inside markdown.  Return exactly one JSON object matching the schema below.  SCHEMA  {   \"origin\": \"\",   \"destination\": \"\",   \"transportMode\": \"\",   \"startDate\": \"\",   \"endDate\": \"\",   \"people\": 0,   \"budget\": 0,   \"currency\": \"\",   \"style\": \"\",   \"missingFields\": [],   \"isComplete\": false }  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  FIELD DEFINITIONS  origin  The place the user is travelling FROM.  Examples  Kochi Bangalore Delhi New York London  If not mentioned, return:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  destination  The place the user wants to visit.  Examples  Munnar Goa Dubai Paris  If not mentioned, return:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  transportMode  Return ONLY one of these values:  Car Flight Train Bus Bike  Recognize common travel phrases and normalize them.  Examples  \"I'm driving\" \"My car\" \"Road trip\" \"Driving down\" \"Self drive\" \"Own vehicle\" \"Rental car\" \"SUV\"  → Car  \"I'm flying\" \"By flight\" \"Plane\" \"Air travel\"  → Flight  \"Train\" \"Rail\" \"Railway\"  → Train  \"Bus\" \"Coach\"  → Bus  \"Motorcycle\" \"Bike\" \"Riding\"  → Bike  If transport mode is not mentioned, return:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  startDate  Return dates in:  DD/MM/YYYY  Recognize formats such as:  30 July 30 Jul 30th July 30/07 30-07-2026  If the year is omitted, assume the next logical occurrence.  If missing:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  endDate  Return dates in:  DD/MM/YYYY  Recognize formats such as:  6 August 06 Aug 06/08 06-08-2026  If the year is omitted, assume the next logical occurrence.  If missing:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  people  Return the total number of travelers.  Examples  solo → 1  me → 1  my wife and I → 2  couple → 2  family of 4 → 4  5 friends → 5  If not mentioned:  0  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  budget  Return ONLY the numeric value.  Examples  ₹50,000 → 50000  Rs.15000 → 15000  15000 INR → 15000  15000 → 15000  Remove commas, symbols and text.  If not mentioned:  0  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  currency  Return the ISO 4217 currency code.  Examples  INR USD EUR GBP AED  Recognize:  ₹ Rs Rs. Rupees  → INR  $  Dollar Dollars  → USD  €  Euro  → EUR  £  Pound  → GBP  AED  Dirham  → AED  If a budget is provided but no currency is mentioned, assume:  INR  The currency field must never be empty whenever budget > 0.  If budget is 0:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  style  Infer ONE travel style.  Allowed values include:  Nature  Adventure  Romantic  Luxury  Relaxation  Family  Wildlife  Road Trip  Beach  Pilgrimage  Cultural  Shopping  Food  Business  Examples  Munnar → Nature  Goa → Beach  Manali → Adventure  Ooty → Nature  Thekkady → Wildlife  Tirupati → Pilgrimage  Jaipur → Cultural  Dubai → Luxury  If the style cannot reasonably be inferred, return:  \"\"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  missingFields  Required fields are:  origin  destination  transportMode  startDate  endDate  people  budget  Do NOT include:  currency  style  Example  [   \"origin\",   \"budget\" ]  If none are missing  []  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  isComplete  Return:  true  ONLY when ALL required fields are present.  Otherwise return:  false  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  VALIDATION RULES  Return ONLY valid JSON.  Never invent missing information.  You may infer ONLY:  • travel style  • currency (default to INR when budget is provided without currency)  Do NOT guess:  • origin  • destination  • transport mode  • travel dates  • number of travelers  • budget  If any required field is missing:  • Leave it empty (or 0 for numeric fields)  • Add it to \"missingFields\"  • Set \"isComplete\" to false  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  EXAMPLE 1  User:  I want to travel from Kochi to Munnar by car from 30 July to 6 August with 2 people and a budget of ₹100000.  Output  {   \"origin\":\"Kochi\",   \"destination\":\"Munnar\",   \"transportMode\":\"Car\",   \"startDate\":\"30/07/2026\",   \"endDate\":\"06/08/2026\",   \"people\":2,   \"budget\":100000,   \"currency\":\"INR\",   \"style\":\"Nature\",   \"missingFields\":[],   \"isComplete\":true }  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  EXAMPLE 2  User:  Plan a trip to Goa.  Output  {   \"origin\":\"\",   \"destination\":\"Goa\",   \"transportMode\":\"\",   \"startDate\":\"\",   \"endDate\":\"\",   \"people\":0,   \"budget\":0,   \"currency\":\"\",   \"style\":\"Beach\",   \"missingFields\":[     \"origin\",     \"transportMode\",     \"startDate\",     \"endDate\",     \"people\",     \"budget\"   ],   \"isComplete\":false }"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -1488,
+        672
+      ],
+      "id": "d25e9aad-9b5e-4920-ae4a-ad476a82f679",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fv75VRENipBXeTmT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let response = $json.content.parts[0].text;\n\n// Remove markdown if Gemini wraps JSON\nresponse = response\n  .replace(/```json/gi, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nconst parsed = JSON.parse(response);\n\nreturn [\n  {\n    json: {\n      origin: parsed.origin,\n      destination: parsed.destination,\n      transportMode: parsed.transportMode,\n      startDate: parsed.startDate,\n      endDate: parsed.endDate,\n      people: parsed.people,\n      budget: parsed.budget,\n      currency: parsed.currency,\n      style: parsed.style,\n\n      hasOrigin: !!parsed.origin,\n      hasDestination: !!parsed.destination,\n      hasTransportMode: !!parsed.transportMode,\n      hasStartDate: !!parsed.startDate,\n      hasEndDate: !!parsed.endDate,\n      hasPeople: parsed.people > 0,\n      hasBudget: parsed.budget > 0,\n\n      isComplete: parsed.isComplete,\n      missingFields: parsed.missingFields\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1136,
+        672
+      ],
+      "id": "ec080858-4623-453d-99e5-b618d572111f",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 183162205,
+          "mode": "list",
+          "cachedResultName": "Activities",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=183162205"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Trip ID",
+              "lookupValue": "={{ $('Get Trips Daywise').last().json['Trip ID'] }}"
+            },
+            {
+              "lookupColumn": "Day Number",
+              "lookupValue": "={{ Number($('Telegram Trigger').first().json.message.text.match(/\\d+/)[0]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1136,
+        0
+      ],
+      "id": "4a8ae3b3-89c8-4d42-85d7-c9bd70b55ddb",
+      "name": "Get Activites for the Day",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c",
+          "mode": "list",
+          "cachedResultName": "Trip Planner",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 640879796,
+          "mode": "list",
+          "cachedResultName": "Trips",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iuHHbFhq8IQmVKI0531rNPJ-P7GEFZ_s8Q-sI9TS99c/edit#gid=640879796"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1424,
+        0
+      ],
+      "id": "eb2283df-cba0-4e40-a7ea-64fe80050020",
+      "name": "Get Trips Daywise",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sXWFfGogq2hv2bzz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const footer = `\n\n━━━━━━━━━━━━━━\n\n🏠 Need anything else?\n\nType \"home\" to return to the main menu.`;\n\nconst activities = $input.all();\n\nif (activities.length === 0) {\n  return [{\n    json: {\n      message: \"No itinerary found.\" + footer\n    }\n  }];\n}\n\n// Sort by activity order\nactivities.sort((a, b) =>\n  Number(a.json[\"Activity Order\"]) -\n  Number(b.json[\"Activity Order\"])\n);\n\nconst day = activities[0].json[\"Day Number\"];\n\nlet output = `📅 *DAY ${day}*\\n\\n`;\n\nactivities.forEach(a => {\n  output +=\n`🕒 ${a.json[\"Start Time\"]} - ${a.json[\"End Time\"]}\n📍 *${a.json[\"Activity Name\"]}*\n\n${a.json[\"Description\"]}\n\n`;\n});\n\noutput += footer;\n\nreturn [{\n  json: {\n    message: output\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        0
+      ],
+      "id": "3c321f33-8b28-460e-9628-b59fa3c9a6e9",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Switch').item.json.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -688,
+        0
+      ],
+      "id": "6473f6a0-31c1-4d13-b60d-acd352cd2f07",
+      "name": "Send a text message",
+      "webhookId": "853aa1d7-60c1-46ce-becb-477fe768a3d0",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "show",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "4d42ec64-e53e-4b9d-8889-90e34278662f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Itenary"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "89eef1be-7fa9-4db0-9f05-8126329c3531",
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "day",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Day Wise"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "66969cae-eafd-47bc-89e5-795b46bc9f51",
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "=hi",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "db2a67e5-5e95-4f04-8c84-5c337402b506",
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "hello",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2a5d0edd-3948-4de0-ae26-fe104b977022",
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "38936834-692d-4492-8dcd-9d9bd4ce91c8",
+                    "leftValue": "={{ $json.message.text.toLowerCase() }}",
+                    "rightValue": "home",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Home"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1712,
+        208
+      ],
+      "id": "d532a036-7d07-4963-a18a-d0399e3172cf",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{\n\"🌍 *Welcome to TravelOS!*\\n\\n\" +\n\"Your AI-powered travel companion. ✈️\\n\\n\" +\n\"I'll create a personalized day-wise travel itinerary based on your preferences.\\n\\n\" +\n\"*Please copy the template below, fill in your trip details, and send it back:*\\n\\n\" +\n\"📍 Origin:\\n\" +\n\"🏔️ Destination:\\n\" +\n\"🚗 Transport Mode:\\n\" +\n\"📅 Start Date (DD/MM/YYYY):\\n\" +\n\"📅 End Date (DD/MM/YYYY):\\n\" +\n\"👥 Travelers:\\n\" +\n\"💰 Budget:\\n\\n\" +\n\"✨ Once you send the completed template, I'll generate:\\n\" +\n\"• A complete day-wise itinerary\\n\" +\n\"• Top attractions\\n\" +\n\"• Estimated costs\\n\" +\n\"• Budget-friendly hotel & restaurant suggestions\\n\" +\n\"• A ready-to-follow travel plan 🚀\"\n}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1136,
+        192
+      ],
+      "id": "f7a78869-4dec-4810-a30c-69a0d2128b43",
+      "name": "Send a text message1",
+      "webhookId": "9571b87f-d2d1-4674-a43b-b3738ddb2519",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-Api-Key",
+              "value": "AIzaSyCBRnElygDMtLsWHOUwWHQCgEUOr0qJtMQ"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.displayName,places.formattedAddress,places.rating,places.photos,places.userRatingCount,places.primaryType,places.googleMapsUri"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"textQuery\": \"{{ $('Code in JavaScript3').item.json.destination }} tourist attractions\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -688,
+        576
+      ],
+      "id": "95cc91b6-7857-46bf-9054-05620eb2ee39",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const places = $json.places || [];\n\n// Get destination from parser\nconst destination = $('Sufficient Data Available or not')\n  .item\n  .json\n  .destination\n  .replace(/\\b\\w/g, c => c.toUpperCase());\n\n// Google Places API Key\nconst apiKey = \"AIzaSyCBRnElygDMtLsWHOUwWHQCgEUOr0qJtMQ\";\n\n// Allowed attraction types\nconst allowedTypes = [\n  \"tourist_attraction\",\n  \"museum\",\n  \"park\",\n  \"national_park\",\n  \"zoo\",\n  \"beach\",\n  \"church\",\n  \"hindu_temple\",\n  \"mosque\",\n  \"synagogue\",\n  \"place_of_worship\",\n  \"historical_landmark\",\n  \"monument\",\n  \"fortress\",\n  \"castle\",\n  \"scenic_lookout\",\n  \"botanical_garden\"\n];\n\n// Filter useful attractions with photos\n// Filter useful attractions with photos\nconst filtered = places\n  .filter(place =>\n    allowedTypes.includes(place.primaryType) &&\n    place.photos &&\n    place.photos.length > 0 &&\n    place.photos[0]?.name\n  )\n  // Sort primarily by popularity (review count),\n  // then by rating if review counts are equal.\n  .sort((a, b) => {\n    const reviewDifference =\n      (b.userRatingCount || 0) - (a.userRatingCount || 0);\n\n    if (reviewDifference !== 0) {\n      return reviewDifference;\n    }\n\n    return (b.rating || 0) - (a.rating || 0);\n  });\n\n// Top 5 attractions\nconst attractions = filtered.slice(0, 5).map(place => ({\n  name: place.displayName?.text || \"Unknown\",\n  rating: place.rating || \"N/A\",\n  userRatingCount: place.userRatingCount || 0,\n  type: place.primaryType || \"\",\n  address: place.formattedAddress || \"\",\n  maps: place.googleMapsUri || \"\",\n  photoName: place.photos?.[0]?.name || \"\"\n}));\n\n// Rich attraction list for Gemini\n// Rich attraction list for Gemini\nconst attractionList = attractions\n  .map((a, i) => `\n#${i + 1}\n\n${a.name}\n\n👥 Reviews: ${a.userRatingCount.toLocaleString()}\n\n⭐ Rating: ${a.rating}\n\n🏷️ Category: ${a.type\n  .replace(/_/g, \" \")\n  .replace(/\\b\\w/g, c => c.toUpperCase())}\n\n📍 Address: ${a.address}\n`)\n  .join(\"\\n\");\n\n// Telegram media array\nconst media = attractions.map((a, index) => ({\n  type: \"photo\",\n  media: `https://places.googleapis.com/v1/${a.photoName}/media?maxWidthPx=1200&key=${apiKey}`,\n  ...(index === 0\n    ? {\n        caption:\n`📸 Top Attractions in ${destination}\n\n${attractions\n  .map(x => `📍 ${x.name} ⭐ ${x.rating}`)\n  .join(\"\\n\")}\n\nSwipe to explore ➜`\n      }\n    : {})\n}));\n\n\nreturn [{\n  json: {\n    destination,\n    attractions,\n    attractionList,\n    media,\n    firstPhoto: media[0].media\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        576
+      ],
+      "id": "713d00e5-75ba-432d-8c65-ea9ce7c68bb9",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        576
+      ],
+      "id": "49081c1c-85de-4a60-97f6-9314e5a209cd",
+      "name": "Summary Message",
+      "webhookId": "aa276794-3c68-42e1-ab56-397eaf031bba",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an experienced travel guide creating a welcome message for a travel assistant called TravelOS.\n\nDestination:\n{{ $json.destination }}\n\nTop Attractions:\n{{ $json.attractionList }}\n\nWrite the response in Telegram Markdown.\n\nRules:\n\n• Start with:\n\n🌍 *Discover {{ $json.destination }}*\n\n(blank line)\n\n• Write exactly 2 short introductory sentences.\n\n(blank line)\n\n• Then write:\n\n✨ *Why you'll love it*\n\n(blank line)\n\n• Mention exactly 4 attractions from the list.\n\n• Each attraction MUST follow this format:\n\n🍃 *Kolukkumalai Tea Estate*\n\nThe world's highest organic tea plantation with breathtaking sunrise views.\n\n(blank line)\n\n🌸 *Blossom Hydel Park*\n\nA peaceful riverside park perfect for relaxing walks.\n\n(blank line)\n\n🏞️ *Munnar View Point*\n\nEnjoy panoramic views of rolling hills and misty mountains.\n\n(blank line)\n\n🫖 *Tea Museum*\n\nLearn about Kerala's rich tea heritage.\n\n(blank line)\n\nFinish with exactly:\n\n━━━━━━━━━━━━━━\n\n⏳ *Creating your personalized itinerary...*\n\nRules:\n- Put ONE blank line after every heading.\n- Put ONE blank line between every attraction.\n- Keep every description to one sentence.\n- Do NOT write long paragraphs.\n- Do NOT create an itinerary.\n- Maximum 180 words."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        576
+      ],
+      "id": "4a184bb1-c65a-4a40-ae32-23c442c39678",
+      "name": "Create Summary",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fv75VRENipBXeTmT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot8571693271:AAHDKTm5V-OGli_Cz9-h0HpycXjEfLuXmgM/sendMediaGroup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $('Telegram Trigger').item.json.message.chat.id }}\",\n  \"media\": {{ JSON.stringify($('Code in JavaScript4').item.json.media) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        576
+      ],
+      "id": "d2a0b9d4-f626-4f90-938a-9f5c3abc52ab",
+      "name": "Photos"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=<pre>Origin:\nDestination:\nTransport Mode:\nStart Date:\nEnd Date:\nNumber of Travelers:\nBudget:</pre>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        848
+      ],
+      "id": "f76a7cf4-fc10-416f-b471-068f916f8120",
+      "name": "Send a text message2",
+      "webhookId": "3a1dcc92-5f84-45f3-8968-47dde34eca40",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.result.chat.id }}",
+        "text": "=<pre>Origin:\nDestination:\nTransport Mode:\nStart Date:\nEnd Date:\nNumber of Travelers:\nBudget:</pre>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -928,
+        192
+      ],
+      "id": "8c678236-ef0b-4963-8b7e-111d79fc85bf",
+      "name": "Send a text message3",
+      "webhookId": "c826f16d-ed13-4419-9326-4b5c41c1c508",
+      "credentials": {
+        "telegramApi": {
+          "id": "skR1whBSflM6yEqi",
+          "name": "Travel Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Updates the Trip details",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Updates Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Shows Itenary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sufficient Data Available or not": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for missing data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Creates Itenary": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Trips Data": {
+      "main": [
+        [
+          {
+            "node": "Gets Activities Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gets Activities Data": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updates the Trip details": {
+      "main": [
+        [
+          {
+            "node": "Itenary Created Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Sufficient Data Available or not",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Trips Daywise": {
+      "main": [
+        [
+          {
+            "node": "Get Activites for the Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Activites for the Day": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get Trips Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Trips Daywise",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Create Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Message": {
+      "main": [
+        [
+          {
+            "node": "Photos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Summary": {
+      "main": [
+        [
+          {
+            "node": "Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photos": {
+      "main": [
+        [
+          {
+            "node": "Creates Itenary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask for missing data": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3d28b187-7215-404d-9f30-3c2505946b74",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "85d83691454fc51be9a9c88075d3f56b7e24b685194b1d25adda3ad9954d53ce"
+  },
+  "id": "nxlH8X6kUxfLXneY",
+  "tags": []
+}

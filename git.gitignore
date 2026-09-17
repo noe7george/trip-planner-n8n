@@ -1,0 +1,24 @@
+# Environment files
+.env
+.env.local
+*.env
+
+# Credentials
+credentials.json
+secrets.json
+
+# n8n local data
+.n8n/
+n8n-data/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Live workflow with real keys (never commit)
+workflow/*_live.json
+workflow/*_private.json
